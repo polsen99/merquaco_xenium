@@ -1,4 +1,4 @@
-Metadata-Version: 2.1
+Metadata-Version: 2.4
 Name: merquaco
 Version: 0.0.1
 Summary: Tools for QC on MERSCOPE datasets
@@ -7,10 +7,18 @@ Author: Naomi Martin, Paul Olsen
 Author-email: naomi.martin@alleninstitute.org, paul.olsen@alleninstitute.org
 License: LICENSE
 License-File: LICENSE
-Requires-Dist: numpy
-Requires-Dist: pandas
-Requires-Dist: tifffile
-Requires-Dist: matplotlib
-Requires-Dist: scikit-image
-Requires-Dist: opencv-python
-Requires-Dist: imagecodecs
+Requires-Dist: numpy==1.26.4
+Requires-Dist: pandas==2.2.2
+Requires-Dist: tifffile==2024.5.10
+Requires-Dist: matplotlib==3.9.0
+Requires-Dist: scikit-image==0.23.2
+Requires-Dist: opencv-python==4.9.0.80
+Requires-Dist: imagecodecs==2024.1.1
+Requires-Dist: sphinx-rtd-theme==2.0.0
+Dynamic: author
+Dynamic: author-email
+Dynamic: home-page
+Dynamic: license
+Dynamic: license-file
+Dynamic: requires-dist
+Dynamic: summary

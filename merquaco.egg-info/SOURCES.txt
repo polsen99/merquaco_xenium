@@ -1,6 +1,13 @@
 LICENSE
+MANIFEST.in
 README.rst
 setup.py
+ilastik_models/DapiMaskObjectClassification_Mouse.ilp
+ilastik_models/DapiMaskPixelClassification_Mouse.ilp
+ilastik_models/TissueMaskObjects_v1.1.ilp
+ilastik_models/TissueMaskPixelClassification_v1.0.ilp
+ilastik_models/VentriclesObjectClassification.ilp
+ilastik_models/VentriclesPixelClassification.ilp
 merquaco/__init__.py
 merquaco/data_loss.py
 merquaco/data_processing.py
@@ -16,3 +23,9 @@ merquaco.egg-info/SOURCES.txt
 merquaco.egg-info/dependency_links.txt
 merquaco.egg-info/requires.txt
 merquaco.egg-info/top_level.txt
+merquaco/../ilastik_models/DapiMaskObjectClassification_Mouse.ilp
+merquaco/../ilastik_models/DapiMaskPixelClassification_Mouse.ilp
+merquaco/../ilastik_models/TissueMaskObjects_v1.1.ilp
+merquaco/../ilastik_models/TissueMaskPixelClassification_v1.0.ilp
+merquaco/../ilastik_models/VentriclesObjectClassification.ilp
+merquaco/../ilastik_models/VentriclesPixelClassification.ilp
