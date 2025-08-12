@@ -85,7 +85,7 @@ def find_fovs(transcripts: pd.DataFrame) -> pd.DataFrame:
 
     # Width/height
     fovs['width'] = fovs['x_max'] - fovs['x_min']
-    fovs['height'] = fovs['y_max'] = fovs['y_min']
+    fovs['height'] = fovs['y_max'] - fovs['y_min']
 
     # Centroids
     fovs['center_x'] = (fovs['x_max'] - fovs['x_min']) / 2 + fovs['x_min']
@@ -95,9 +95,9 @@ def find_fovs(transcripts: pd.DataFrame) -> pd.DataFrame:
     fovs['transcript_counts'] = transcripts.groupby('fov').size()
 
     # Counts per z-plane
-    planes = transcripts['global_z'].nunique()
+    planes = transcripts['z_plane'].nunique()
     for i in range(planes):
-        fovs[f'z{i}_count'] = transcripts[transcripts['global_z'] == i].groupby('fov').size()
+        fovs[f'z{i}_count'] = transcripts[transcripts['z_plane'] == i].groupby('fov').size()
 
     return fovs
 
@@ -749,9 +749,12 @@ class XeniumExperiment:
         print('renaming columns')
         self.transcripts = transcripts.rename(columns={'x_location': 'global_x',
                                                        'y_location': 'global_y',
-                                                       'z_location': 'global_z',
                                                        'fov_name': 'fov',
+                                                       'z_location': 'global_z',    # global_z is precise z position, not z-plane
                                                        'feature_name': 'gene'})
+        # Add z-plane as global_z rounded to integer
+        self.transcripts['z_plane'] = self.transcripts['global_z'].round().astype(int)
+
         # Filter low quality transcripts / blanks
         print('removing blanks')
         filtered_transcripts = self.remove_low_quality_transcripts(self.transcripts)
