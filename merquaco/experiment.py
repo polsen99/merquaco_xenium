@@ -747,8 +747,11 @@ class XeniumExperiment:
         transcripts = read_transcripts(transcripts_input)  # Reads both .csv and .parquet
         # Rename columns to fit MERSCOPE names
         print('renaming columns')
-        self.transcripts = transcripts.rename(columns={'x_location': 'global_x', 'y_location': 'global_y',
-                                                       'fov_name': 'fov', 'feature_name': 'gene'})
+        self.transcripts = transcripts.rename(columns={'x_location': 'global_x',
+                                                       'y_location': 'global_y',
+                                                       'z_location': 'global_z',
+                                                       'fov_name': 'fov',
+                                                       'feature_name': 'gene'})
         # Filter low quality transcripts / blanks
         print('removing blanks')
         filtered_transcripts = self.remove_low_quality_transcripts(self.transcripts)
@@ -837,9 +840,9 @@ class XeniumExperiment:
             raise KeyError(f'`which` parameter is invalid. must be one of {valid_which}')
 
         if which == 'all':
-            filtered_transcripts = transcripts[~transcripts['gene'].str.startswith('NegControl',
+            filtered_transcripts = transcripts[~transcripts['gene'].str.startswith(('NegControl',
                                                                                    'Unassigned',
-                                                                                   'Deprecated')]
+                                                                                   'Deprecated'))]
 
         else:
             filtered_transcripts = transcripts[~transcripts['gene'].str.startswith(which)]
