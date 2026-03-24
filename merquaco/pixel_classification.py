@@ -380,6 +380,10 @@ def create_dapi_image(high_res_dapi_image_path: Union[str, Path],
     except FileNotFoundError as e:
         raise FileNotFoundError(f'`high_res_dapi_image_path` not found at {high_res_dapi_image_path}: {e}')
 
+    # Extract DAPI channel if multi-channel image (e.g. Xenium morphology.ome.tif)
+    if high_res_dapi_image.ndim > 2:
+        high_res_dapi_image = high_res_dapi_image[0]
+
     # Compress image by factor of 100
     dapi_image = compress_image(high_res_dapi_image, bin_size=100)
     # Normalize pixel intensities back to (0, 255)
