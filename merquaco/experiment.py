@@ -24,8 +24,14 @@ metrics_dict_keys = ["filtered_transcripts_count", "transcript_density_um2", "tr
                      "dapi_mask_object_path", "ventricle_mask_pixel_path", "ventricle_mask_object_path",
                      "merquaco_version"]
 
+xenium_metrics_dict_keys = ["filtered_transcript_counts", "transcript_density_um2", "transcript_density_um2_per_gene",
+                             "on_tissue_transcript_count", "counts_per_gene", "damage_area", "transcripts_area",
+                             "detachment_area", "ventricle_area", "total_area", "damage_percent", "transcripts_percent",
+                             "detachment_percent", "ventricle_percent", "transcripts_mask_pixel_path",
+                             "transcripts_mask_object_path", "dapi_mask_pixel_path", "dapi_mask_object_path",
+                             "ventricle_mask_pixel_path", "ventricle_mask_object_path", "merquaco_version"]
 
-@staticmethod
+
 def read_transcripts(transcripts_path: Union[str, Path]) -> pd.DataFrame:
     """
     Reads and returns transcripts table dataframe
@@ -63,7 +69,6 @@ def read_transcripts(transcripts_path: Union[str, Path]) -> pd.DataFrame:
                                     f'error: {e}')
 
 
-@staticmethod
 def find_fovs(transcripts: pd.DataFrame) -> pd.DataFrame:
     """
     Groups transcript table by FOV and stores coordinate and count information
@@ -102,7 +107,6 @@ def find_fovs(transcripts: pd.DataFrame) -> pd.DataFrame:
     return fovs
 
 
-@staticmethod
 def get_fov_neighbors(fovs: pd.DataFrame) -> pd.DataFrame:
     """
     Get cardinal neighbors for each FOV using grid coordinates
@@ -163,7 +167,6 @@ def get_fov_neighbors(fovs: pd.DataFrame) -> pd.DataFrame:
     return fovs
 
 
-@staticmethod
 def get_transcript_density(transcripts_image_input: Union[np.ndarray, str, Path],
                            transcripts_mask_input: Union[np.ndarray, str, Path]):
     """
@@ -195,7 +198,6 @@ def get_transcript_density(transcripts_image_input: Union[np.ndarray, str, Path]
     return transcript_density_um2
 
 
-@staticmethod
 def get_on_tissue_transcript_count(transcripts_image_input: Union[np.ndarray, str, Path],
                                    transcripts_mask_input: Union[np.ndarray, str, Path]) -> int:
     """
@@ -220,7 +222,6 @@ def get_on_tissue_transcript_count(transcripts_image_input: Union[np.ndarray, st
     return on_tissue_transcript_count
 
 
-@staticmethod
 def scale_transcripts_xy(transcripts: pd.DataFrame) -> pd.DataFrame:
     """
     Scales transcripts (x,y) locations based on min (x,y) values
@@ -249,7 +250,34 @@ def scale_transcripts_xy(transcripts: pd.DataFrame) -> pd.DataFrame:
     return transcripts
 
 
-@staticmethod
+def write_qc_summary(qc_summary_path: Union[str, Path], qc_dict: dict) -> None:
+    """
+    Writes JSON file with summary of QC metrics
+
+    Parameters
+    ----------
+    qc_summary_path : str or Path
+        Path to JSON QC summary location
+    qc_dict : dict
+        Dictionary of QC metrics keys and values
+    """
+    # Check if the file exists and load existing data
+    if os.path.exists(qc_summary_path):
+        with open(qc_summary_path, 'r') as file:
+            data = json.load(file)
+
+        # Update only the fields that are "NA" in the existing data
+        for key, value in qc_dict.items():
+            if isinstance(data.get(key), float) and np.isnan(data.get(key)):
+                data[key] = value
+    else:
+        data = qc_dict.copy()
+
+    # Write the updated data back to the file
+    with open(qc_summary_path, 'w') as file:
+        json.dump(data, file, indent=4)
+
+
 def get_fovs_dataframe(transcripts: pd.DataFrame) -> pd.DataFrame:
     """
     Creates FOVs dataframe including coordinates, trancsript counts, neighbors
@@ -434,38 +462,6 @@ class MerscopeExperiment:
 
         return codebook
 
-    @staticmethod
-    def write_qc_summary(qc_summary_path: Union[str, Path], qc_dict: dict) -> None:
-        """
-        Writes JSON file with summary of QC metrics
-
-        Parameters
-        ----------
-        qc_summary_path : str or Path
-            Path to JSON QC summary location
-        qc_dict : dict
-            Dictionary of QC metrics keys and values
-
-        Returns
-        -------
-        None
-        """
-
-        # Check if the file exists and load existing data
-        if os.path.exists(qc_summary_path):
-            with open(qc_summary_path, 'r') as file:
-                data = json.load(file)
-
-            # Update only the fields that are "NA" in the existing data
-            for key, value in qc_dict.items():
-                if isinstance(data.get(key), float) and np.isnan(data.get(key)):
-                    data[key] = value
-        else:
-            data = qc_dict.copy()
-
-        # Write the updated data back to the file
-        with open(qc_summary_path, 'w') as file:
-            json.dump(data, file, indent=4)
 
     def run_dropout_pipeline(self):
         """
@@ -683,7 +679,7 @@ class MerscopeExperiment:
             metrics_dict[key] = getattr(self, key, np.nan)
 
         if save_metrics:
-            MerscopeExperiment.write_qc_summary(Path(self.output_dir, "qc_summary.json"), metrics_dict)
+            write_qc_summary(Path(self.output_dir, "qc_summary.json"), metrics_dict)
 
 
 class XeniumExperiment:
@@ -744,7 +740,7 @@ class XeniumExperiment:
 
         # Begin processing transcripts dataframe
         print('Processing transcripts dataframe')
-        transcripts = read_transcripts(transcripts_input)  # Reads both .csv and .parquet
+        transcripts = data_processing.process_input(transcripts_input)
         # Rename columns to fit MERSCOPE names
         print('renaming columns')
         self.transcripts = transcripts.rename(columns={'x_location': 'global_x',
@@ -852,6 +848,106 @@ class XeniumExperiment:
 
         return filtered_transcripts
 
+    def run_full_pixel_classification(self, save_metrics: bool = True):
+        """
+        Runs entire pixel classification workflow:
+            - generates binary masks for transcripts, DAPI, gel lifting, ventricles, and damage
+            - resizes and aligns masks
+            - calculates pixel percentages over "ideal" tissue area
+
+        Attributes Set
+        --------------
+        pixel_areas : np.ndarray
+            Array of pixel classification area designations in microns: [damage, tissue, gel lifting, ventricles]
+        pixel_percentages : np.ndarray
+            Array of pixel classification area designations as percentage of "ideal" tissue area
+            [damage, tissue, gel lifting, ventricles]
+        ideal_tissue_area : float
+            Sum of all non-off-tissue pixels
+        """
+        # Set attributes as None in case there are no ventricle genes
+        self.ventricle_mask = None
+        self.damage_mask = None
+
+        if self.transcripts_mask is None:
+            print("Generating transcript mask...")
+            self.transcripts_mask = pc.generate_transcripts_mask(self.transcripts_image_path,
+                                                                 self.ilastik_program_path,
+                                                                 self.transcripts_mask_pixel_path,
+                                                                 self.transcripts_mask_object_path,
+                                                                 self.filtered_transcripts)
+
+        print("Generating DAPI mask...")
+        self.dapi_mask = pc.generate_dapi_mask(self.dapi_image_path,
+                                               self.ilastik_program_path,
+                                               self.dapi_mask_pixel_path,
+                                               self.dapi_mask_object_path,
+                                               self.dapi_high_res_image_path)
+
+        print("Generating lifting mask...")
+        self.detachment_mask = pc.generate_detachment_mask(self.transcripts_mask_path,
+                                                           self.dapi_mask_path,
+                                                           self.detachment_mask_path)
+
+        if any(np.isin(self.genes, self.ventricle_genes_list)):  # If ventricle genes exist
+            print("Generating ventricle mask...")
+            self.ventricle_mask = pc.generate_ventricle_mask(self.ventricle_image_path,
+                                                             self.dapi_mask_path,
+                                                             self.transcripts_mask_path,
+                                                             self.ilastik_program_path,
+                                                             self.ventricle_mask_pixel_path,
+                                                             self.ventricle_mask_object_path,
+                                                             self.filtered_transcripts,
+                                                             self.ventricle_genes_list)
+
+            print("Generating damage mask...")
+            self.damage_mask = pc.generate_damage_mask(self.damage_mask_path,
+                                                       self.dapi_image_path,
+                                                       self.dapi_mask_path,
+                                                       self.transcripts_mask_path,
+                                                       self.ventricle_mask_path)
+
+            # Resize all masks by transcripts mask
+            self.transcripts_mask, self.dapi_mask, self.detachment_mask, \
+                self.ventricle_mask, self.damage_mask = pc.resize_all_masks(self.transcripts_mask,
+                                                                            self.dapi_mask,
+                                                                            self.detachment_mask,
+                                                                            self.ventricle_mask,
+                                                                            self.damage_mask)
+
+        # Classify each pixel
+        print("Classifying pixels...")
+        self.pixel_classification = pc.classify_pixels(self.transcripts_mask,
+                                                       self.detachment_mask,
+                                                       self.ventricle_mask,
+                                                       self.damage_mask,
+                                                       self.pixel_classification_path)
+
+        # Get pixel areas in microns and as percentage of "ideal" tissue area
+        self.damage_area, self.transcripts_area, self.detachment_area, \
+            self.ventricle_area, self.total_area = pc.calculate_class_areas(self.pixel_classification)
+        self.damage_percent, self.transcripts_percent, self.detachment_percent, \
+            self.ventricle_percent = pc.calculate_class_percentages(self.damage_area,
+                                                                    self.transcripts_area,
+                                                                    self.detachment_area,
+                                                                    self.ventricle_area,
+                                                                    self.total_area)
+
+        # Write pixel stats to json file
+        if self.output_dir is not None and save_metrics:
+            pixel_stats_dict = {'damage_area': self.damage_area,
+                                'transcripts_area': self.transcripts_area,
+                                'detachment_area': self.detachment_area,
+                                'ventricle_area': self.ventricle_area,
+                                'damage_percent': self.damage_percent,
+                                'transcripts_percent': self.transcripts_percent,
+                                'detachment_percent': self.detachment_percent,
+                                'ventricle_percent': self.ventricle_percent,
+                                'total_area': self.total_area}
+
+            with open(Path(self.output_dir, "pixel_stats.json"), "w") as outfile:
+                json.dump(pixel_stats_dict, outfile, indent=4)
+
     def run_all_qc(self,
                    run_pixel_classification: bool = True,
                    plot_figures: bool = True,
@@ -870,12 +966,12 @@ class XeniumExperiment:
         """
         # 1. Run pixel classification workflow
         if run_pixel_classification:
-            # TODO: make this global method (or xenium method?)
-            MerscopeExperiment.run_full_pixel_classification(save_metrics)
+            self.run_full_pixel_classification(save_metrics)
 
             if plot_figures:
                 figures.plot_full_pixel_fig(self.pixel_classification,
                                             self.dapi_mask,
+                                            self.transcripts_mask,
                                             self.detachment_mask,
                                             self.transcripts_percent,
                                             self.detachment_percent,
@@ -893,9 +989,10 @@ class XeniumExperiment:
                                                              self.transcripts_mask)
         self.transcript_density_um2_per_gene = self.transcript_density_um2 / self.n_genes
 
-        # 3. Periodicity
-        print('Calculating periodicity')
-        self.periodicity_list = periodicity.get_periodicity_vals_all_z(self.filtered_transcripts, self.fov_dimensions)
+        # 3. Save metrics
+        metrics_dict = {}
+        for key in xenium_metrics_dict_keys:
+            metrics_dict[key] = getattr(self, key, np.nan)
 
-        # 4. Save metrics
-        # TODO: figure this out
+        if save_metrics:
+            write_qc_summary(Path(self.output_dir, "qc_summary.json"), metrics_dict)

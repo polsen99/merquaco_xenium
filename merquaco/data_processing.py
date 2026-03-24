@@ -64,7 +64,12 @@ def process_path(path: Union[str, Path]) -> Union[pd.DataFrame, np.ndarray, dict
     """
     path = str(path)
     # Determine the type of file based on its extension
-    if path.endswith('.csv'):
+    if path.endswith('.parquet'):
+        try:
+            return pd.read_parquet(path)
+        except FileNotFoundError:
+            raise FileNotFoundError(f'File not found at {path}')
+    elif path.endswith('.csv'):
         try:
             return pd.read_csv(path)
         except FileNotFoundError:
