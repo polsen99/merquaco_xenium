@@ -24,7 +24,7 @@ metrics_dict_keys = ["filtered_transcripts_count", "transcript_density_um2", "tr
                      "dapi_mask_object_path", "ventricle_mask_pixel_path", "ventricle_mask_object_path",
                      "merquaco_version"]
 
-xenium_metrics_dict_keys = ["filtered_transcript_counts", "transcript_density_um2", "transcript_density_um2_per_gene",
+xenium_metrics_dict_keys = ["filtered_transcript_count", "transcript_density_um2", "transcript_density_um2_per_gene",
                              "on_tissue_transcript_count", "counts_per_gene", "damage_area", "transcripts_area",
                              "detachment_area", "ventricle_area", "total_area", "damage_percent", "transcripts_percent",
                              "detachment_percent", "ventricle_percent", "transcripts_mask_pixel_path",
@@ -759,8 +759,8 @@ class XeniumExperiment:
         print('')
         self.n_genes = self.filtered_transcripts['gene'].nunique()
         self.genes = [g for g in self.filtered_transcripts['gene'].unique()]
-        self.total_transcript_counts = len(self.transcripts)
-        self.filtered_transcript_counts = len(self.filtered_transcripts)
+        self.total_transcript_count = len(self.transcripts)
+        self.filtered_transcript_count = len(self.filtered_transcripts)
         # Store FOV information
         print('Creating FOV dataframe')
         self.fovs_df = get_fovs_dataframe(self.filtered_transcripts)
